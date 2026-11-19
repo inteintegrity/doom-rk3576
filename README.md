@@ -11,6 +11,12 @@ This script prepares an ARM64 AppImage for the verified Armbian Bookworm / glibc
 - Access to GitHub releases and Debian Bookworm package repositories.
 - Close a running Doom app before replacing its package.
 
+## Download
+
+- [Shell script (v0.1.0)](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/prepare-doom-rk3576-bookworm.sh)
+- [ZIP package](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/doom-rk3576-bookworm.zip)
+- [SHA256SUMS](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/SHA256SUMS)
+
 ## Run on the board
 
 ```bash
