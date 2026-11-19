@@ -7,7 +7,7 @@ Set up FlipCTL and a Bookworm-compatible DOOM application from one script, then 
 - ARM64 Armbian based on Debian Bookworm (the verified board uses glibc 2.36).
 - A regular Linux user with sudo access.
 - A PC with SSH and a web browser.
-- Network access to GitHub, Rust downloads/crates and Debian package repositories.
+- Network access to GitHub, Rust downloads/crates and Debian package repositories. Configure the board-side HTTP/HTTPS proxy if your network needs one; a PC proxy is not automatically inherited by an SSH session.
 
 FlipCTL and Hello World do not need to be installed beforehand.
 
@@ -15,7 +15,7 @@ FlipCTL and Hello World do not need to be installed beforehand.
 
 ```bash
 sudo apt update && sudo apt install -y curl ca-certificates &&
-curl -fL --retry 3 -o setup-doom-rk3576.sh \
+curl -fL --retry 3 --connect-timeout 20 --max-time 120 -o setup-doom-rk3576.sh \
   https://github.com/inteintegrity/doom-rk3576/releases/download/v0.2.0/setup-doom-rk3576.sh &&
 printf '%s  %s\n' \
   c961924e97284eb04d480d036a6f70ca44ab38276634bea35edb97f87b13f3db \
@@ -64,6 +64,14 @@ Before rerunning setup, close Doom through the app switcher: Tab, select Doom, t
 无需预先安装 FlipCTL 或 Hello World。组合脚本面向 ARM64 Armbian Bookworm，以普通用户执行，按提示输入 sudo 密码。脚本会准备依赖和 Rust、编译固定版本的 FlipCTL、校验打包工具，再安装兼容 Bookworm 的 DOOM。等待 `Ready.` 后启动 FlipCTL，在电脑上建立 SSH 隧道并打开浏览器即可操作。
 
 重新安装前，请用 Tab 打开应用切换器，选择 Doom 后按 Z（Kill）关闭。Esc/Backspace 只会让应用进入后台。旧应用包会备份在 `~/.local/share/flipctl-app-backups/`。
+
+## Verification
+
+On 2026-11-19, the public v0.2.0 download and SHA256 check, dependency setup, Rust check, FlipCTL build, AppImage tool checks and DOOM installation completed with exit code 0 on the RK3576 Armbian Bookworm / glibc 2.36 board. Downloads used the user's existing proxy through temporary SSH forwarding.
+
+The newly built FlipCTL launched the installed game. Movement, firing, the game menu and closing through Tab -> Doom -> Z (Kill) were verified. The board's glibc remained 2.36 and its default EGL link remained the Mali library.
+
+The existing Rust toolchain and source checkout were reused. Installing Rust and cloning the source on a newly flashed system were not separately tested. The setup script includes those branches so no previous FlipCTL project is required.
 
 ## Upstream
 
