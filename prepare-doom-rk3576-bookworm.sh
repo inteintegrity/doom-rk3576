@@ -14,12 +14,35 @@
   mkdir -p "$repo/target/appimage"
   work="$(mktemp -d "$repo/target/appimage/doom-bookworm-XXXXXXXX")"
 
-  curl -fL --retry 3 --connect-timeout 20 --max-time 300 \
-    -o "$work/doom-upstream.AppImage" \
-    https://github.com/flipperdevices/flipctl-apps/releases/download/apps/doom-aarch64.fap.AppImage
-  printf '%s  %s\n' \
-    17ba41e2552ee65c20b914dd01945da7c05899fafe121fc5572dd1e013e085af \
-    "$work/doom-upstream.AppImage" | sha256sum -c -
+  upstream_sha=17ba41e2552ee65c20b914dd01945da7c05899fafe121fc5572dd1e013e085af
+  cache_dir="$repo/target/appimage/downloads"
+  mkdir -p "$cache_dir"
+  cached="$cache_dir/doom-$upstream_sha.AppImage"
+  if [ ! -f "$cached" ] || ! printf '%s  %s\n' "$upstream_sha" "$cached" | sha256sum -c --status; then
+    # Reuse a verified download from a previous compatibility setup.
+    for candidate in "$repo"/target/appimage/doom-bookworm-*/doom-upstream.AppImage; do
+      if [ -f "$candidate" ] && printf '%s  %s\n' "$upstream_sha" "$candidate" | sha256sum -c --status; then
+        cp -p "$candidate" "$cached"
+        break
+      fi
+    done
+  fi
+  if [ ! -f "$cached" ] || ! printf '%s  %s\n' "$upstream_sha" "$cached" | sha256sum -c --status; then
+    downloaded=false
+    for attempt in 1 2 3; do
+      if curl -fL --connect-timeout 20 --max-time 900 --continue-at - \
+        -o "$cached.part" \
+        https://github.com/flipperdevices/flipctl-apps/releases/download/apps/doom-aarch64.fap.AppImage; then
+        printf '%s  %s\n' "$upstream_sha" "$cached.part" | sha256sum -c -
+        mv -- "$cached.part" "$cached"
+        downloaded=true
+        break
+      fi
+    done
+    [ "$downloaded" = true ] || { printf 'Download failed; partial file kept at %s.part\n' "$cached" >&2; exit 1; }
+  fi
+  printf '%s  %s\n' "$upstream_sha" "$cached" | sha256sum -c -
+  cp -p "$cached" "$work/doom-upstream.AppImage"
   chmod +x "$work/doom-upstream.AppImage"
   mkdir "$work/original"
   (cd "$work/original" && "$work/doom-upstream.AppImage" --appimage-extract > /dev/null)

@@ -1,43 +1,72 @@
 # DOOM on reComputer RK3576 with FlipCTL
 
-This script prepares an ARM64 AppImage for the verified Armbian Bookworm / glibc 2.36 setup. It uses the upstream dsda-doom/Freedoom app data, Bookworm-compatible engine packages and an application-specific Mesa software-rendering configuration.
+Set up FlipCTL and a Bookworm-compatible DOOM application from one script, then play from a PC browser over an SSH tunnel. The application uses dsda-doom and Freedoom data; commercial DOOM WAD files are not required.
 
 ## Requirements
 
-- ARM64 Armbian based on Debian Bookworm.
-- FlipCTL with working Hello World and Wayland hosting in `~/flipper-test/flipctl-slint`.
-- The checked AppImage tools in `target/appimage/tools/` from the prerequisite FlipCTL project.
-- System-compatible SDL2/Mesa multimedia libraries, including `/usr/share/glvnd/egl_vendor.d/50_mesa.json`.
-- Access to GitHub releases and Debian Bookworm package repositories.
-- Close a running Doom app before replacing its package.
+- ARM64 Armbian based on Debian Bookworm (the verified board uses glibc 2.36).
+- A regular Linux user with sudo access.
+- A PC with SSH and a web browser.
+- Network access to GitHub, Rust downloads/crates and Debian package repositories.
 
-## Download
+FlipCTL and Hello World do not need to be installed beforehand.
 
-- [Shell script (v0.1.0)](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/prepare-doom-rk3576-bookworm.sh)
-- [ZIP package](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/doom-rk3576-bookworm.zip)
-- [SHA256SUMS](https://github.com/inteintegrity/doom-rk3576/releases/download/v0.1.0/SHA256SUMS)
-
-## Run on the board
+## 1. Prepare the software on the board
 
 ```bash
-bash prepare-doom-rk3576-bookworm.sh
+sudo apt update && sudo apt install -y curl ca-certificates &&
+curl -fL --retry 3 -o setup-doom-rk3576.sh \
+  https://github.com/inteintegrity/doom-rk3576/releases/download/v0.2.0/setup-doom-rk3576.sh &&
+printf '%s  %s\n' \
+  c961924e97284eb04d480d036a6f70ca44ab38276634bea35edb97f87b13f3db \
+  setup-doom-rk3576.sh | sha256sum -c - &&
+bash setup-doom-rk3576.sh
 ```
 
-Run as your regular Linux user. Do not use sudo for this script. It downloads Debian packages and extracts them into the application's private runtime; it does not install system packages, replace system graphics drivers or upgrade glibc.
+Run as your normal user, not root. Enter your sudo password when asked. Wait for `Ready.`; the first native compilation can take time.
 
-The installed app is `~/Apps/Games/doom-aarch64.fap.AppImage`. Any previous app is backed up under `~/.local/share/flipctl-app-backups/`. Keep the existing FlipCTL and PC SSH tunnel running, then open Games -> Doom in FlipCTL.
+The script installs build/runtime packages, prepares a recent Rust toolchain when needed, builds FlipCTL revision `8aeb387dc4d13fcef9056267b2a3dd7409099834`, verifies AppImage tools and runs the fixed v0.2.0 DOOM compatibility installer. It does not run Flipper One deployment scripts or start/stop an existing FlipCTL service. An existing source checkout at another revision is left untouched and causes setup to stop.
+
+## 2. Connect
+
+On the board, if FlipCTL is not already listening on port 8899:
+
+```bash
+cd ~/flipper-test/flipctl-slint
+WLR_RENDERER=pixman ./target/release/flipctl --headless \
+  --remote 127.0.0.1:8899 --assets "$PWD/crates/flipper-ui/assets/remote"
+```
+
+In a separate PC terminal (replace `<BOARD_IP>` and adjust the username):
+
+```bash
+ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -L 127.0.0.1:8899:127.0.0.1:8899 seeed@<BOARD_IP>
+```
+
+Keep both terminals open. Reuse an existing working tunnel. Open http://127.0.0.1:8899 in the PC browser.
+
+## 3. Play
+
+Enable **Show controls**, open **Menu -> Apps -> Games -> Doom**, and press **Enter**. Arrow keys move/turn, Z fires, X changes weapon, V interacts, B shows the map, A opens/closes the game menu and Enter confirms menu choices. The original remote panel is 256x144 pixels.
+
+Before rerunning setup, close Doom through the app switcher: Tab, select Doom, then Z (Kill). Esc/Backspace alone backgrounds the application.
+
+## Files and backups
+
+- `setup-doom-rk3576.sh`: complete software preparation.
+- `prepare-doom-rk3576-bookworm.sh`: compatibility-only installer; the original release remains available as v0.1.0 for existing setups.
+- `SHA256SUMS`: checksums of both shell scripts.
+- Installed app: `~/Apps/Games/doom-aarch64.fap.AppImage`.
+- Previous Doom packages: `~/.local/share/flipctl-app-backups/`.
 
 ## 中文说明
 
-此脚本面向已实测的 ARM64 Armbian Bookworm / glibc 2.36 环境。请先完成 FlipCTL 前置项目，确认 Hello World 可以运行，且 AppImage 打包工具和 SDL2/Mesa 运行库已准备好。
+无需预先安装 FlipCTL 或 Hello World。组合脚本面向 ARM64 Armbian Bookworm，以普通用户执行，按提示输入 sudo 密码。脚本会准备依赖和 Rust、编译固定版本的 FlipCTL、校验打包工具，再安装兼容 Bookworm 的 DOOM。等待 `Ready.` 后启动 FlipCTL，在电脑上建立 SSH 隧道并打开浏览器即可操作。
 
-在开发板上，以普通用户执行 `bash prepare-doom-rk3576-bookworm.sh`，不要加 sudo。替换应用包前先关闭 Doom。
+重新安装前，请用 Tab 打开应用切换器，选择 Doom 后按 Z（Kill）关闭。Esc/Backspace 只会让应用进入后台。旧应用包会备份在 `~/.local/share/flipctl-app-backups/`。
 
-脚本会校验官方原包，保留 Freedoom 游戏数据，并使用 Bookworm 引擎、应用专用 EGL 加载器与 Mesa 软件渲染重新打包。旧包备份到 `~/.local/share/flipctl-app-backups/`。此包仍依赖板上已有的兼容多媒体运行库，并非适用于任意 Linux 发行版的通用镜像。
+## Upstream
 
-## Verification scope
-
-The compatibility approach was verified on RK3576: the game scene, movement, firing and game-menu input worked. The extracted script passed Bash and embedded Python syntax checks. The complete downloaded script has not yet been rerun from a clean system; it retains the documented prerequisites.
-
-Upstream app: https://github.com/flipperdevices/flipctl-apps/releases/tag/apps
-Bookworm engine: https://packages.debian.org/bookworm/dsda-doom
+- FlipCTL: https://github.com/flipperdevices/flipctl-slint/tree/8aeb387dc4d13fcef9056267b2a3dd7409099834
+- Application: https://github.com/flipperdevices/flipctl-apps/releases/tag/apps
+- Bookworm engine: https://packages.debian.org/bookworm/dsda-doom
